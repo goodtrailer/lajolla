@@ -25,7 +25,7 @@ TableDist1D make_table_dist_1d(const std::vector<Real> &f) {
 }
 
 int sample(const TableDist1D &table, Real rnd_param) {
-    int size = table.pmf.size();
+    int size = (int)table.pmf.size();
     assert(size > 0);
     const Real *ptr = std::upper_bound(table.cdf.data(), table.cdf.data() + size + 1, rnd_param);
     int offset = std::clamp(int(ptr - table.cdf.data() - 1), 0, size - 1);
@@ -141,8 +141,8 @@ Vector2 sample(const TableDist2D &table, const Vector2 &rnd_param) {
 Real pdf(const TableDist2D &table, const Vector2 &xy) {
     // Convert xy to integer rows & columns
     int w = table.width, h = table.height;
-    int x = std::clamp(xy.x * w, Real(0), Real(w - 1));
-    int y = std::clamp(xy.y * h, Real(0), Real(h - 1));
+    int x = (int)std::clamp(xy.x * w, Real(0), Real(w - 1));
+    int y = (int)std::clamp(xy.y * h, Real(0), Real(h - 1));
     // What's the PDF for sampling row y?
     Real pdf_y = table.pdf_marginals[y];
     // What's the PDF for sampling row x?

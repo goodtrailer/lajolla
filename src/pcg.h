@@ -26,7 +26,7 @@ inline uint32_t next_pcg32(pcg32_state &rng) {
     // Calculate output function (XSH RR), uses old state for max ILP
     uint32_t xorshifted = uint32_t(((oldstate >> 18u) ^ oldstate) >> 27u);
     uint32_t rot = uint32_t(oldstate >> 59u);
-    return uint32_t((xorshifted >> rot) | (xorshifted << ((-rot) & 31)));
+    return uint32_t((xorshifted >> rot) | (xorshifted << ((-(int32_t)rot) & 31)));
 }
 
 // https://github.com/wjakob/pcg32/blob/master/pcg32.h#L47

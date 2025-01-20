@@ -1,6 +1,6 @@
 #include "../microfacet.h"
 
-Spectrum eval_op::operator()(const DisneySheen &bsdf) const {
+Spectrum eval_op::operator()(const DisneySheen &) const {
     if (dot(vertex.geometric_normal, dir_in) < 0 ||
             dot(vertex.geometric_normal, dir_out) < 0) {
         // No light below the surface
@@ -16,7 +16,7 @@ Spectrum eval_op::operator()(const DisneySheen &bsdf) const {
     return make_zero_spectrum();
 }
 
-Real pdf_sample_bsdf_op::operator()(const DisneySheen &bsdf) const {
+Real pdf_sample_bsdf_op::operator()(const DisneySheen &) const {
     if (dot(vertex.geometric_normal, dir_in) < 0 ||
             dot(vertex.geometric_normal, dir_out) < 0) {
         // No light below the surface
@@ -33,7 +33,7 @@ Real pdf_sample_bsdf_op::operator()(const DisneySheen &bsdf) const {
 }
 
 std::optional<BSDFSampleRecord>
-        sample_bsdf_op::operator()(const DisneySheen &bsdf) const {
+        sample_bsdf_op::operator()(const DisneySheen &) const {
     if (dot(vertex.geometric_normal, dir_in) < 0) {
         // No light below the surface
         return {};

@@ -118,7 +118,7 @@ struct intersect_op {
     const Ray &ray;
 };
 template <typename T>
-bool intersect_op<T>::operator()(const ConstantVolume<T> &v) const {
+bool intersect_op<T>::operator()(const ConstantVolume<T> &) const {
     return true;
 }
 template <typename T>

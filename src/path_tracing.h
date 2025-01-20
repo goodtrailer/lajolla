@@ -271,20 +271,20 @@ Spectrum path_tracing(const Scene &scene,
             Spectrum C2 = G * f * L;
             // Next let's compute p1(v2): the probability of the light source sampling
             // directly drawing the point corresponds to bsdf_dir.
-            int light_id = get_area_light_id(scene.shapes[bsdf_vertex->shape_id]);
-            assert(light_id >= 0);
-            const Light &light = scene.lights[light_id];
+            int light_id2 = get_area_light_id(scene.shapes[bsdf_vertex->shape_id]);
+            assert(light_id2 >= 0);
+            const Light &light2 = scene.lights[light_id2];
             PointAndNormal light_point{bsdf_vertex->position, bsdf_vertex->geometric_normal};
-            Real p1 = light_pmf(scene, light_id) *
-                pdf_point_on_light(light, light_point, vertex.position, scene);
+            Real p1 = light_pmf(scene, light_id2) *
+                pdf_point_on_light(light2, light_point, vertex.position, scene);
             Real w2 = (p2*p2) / (p1*p1 + p2*p2);
 
             C2 /= p2;
             radiance += current_path_throughput * C2 * w2;
         } else if (!bsdf_vertex && has_envmap(scene)) {
             // G & f are already computed.
-            const Light &light = get_envmap(scene);
-            Spectrum L = emission(light,
+            const Light &light2 = get_envmap(scene);
+            Spectrum L = emission(light2,
                                   -dir_bsdf, // pointing outwards from light
                                   ray_diff.spread,
                                   PointAndNormal{}, // dummy parameter for envmap
@@ -294,7 +294,7 @@ Spectrum path_tracing(const Scene &scene,
             // directly drawing the direction bsdf_dir.
             PointAndNormal light_point{Vector3{0, 0, 0}, -dir_bsdf}; // pointing outwards from light
             Real p1 = light_pmf(scene, scene.envmap_light_id) *
-                      pdf_point_on_light(light, light_point, vertex.position, scene);
+                      pdf_point_on_light(light2, light_point, vertex.position, scene);
             Real w2 = (p2*p2) / (p1*p1 + p2*p2);
 
             C2 /= p2;

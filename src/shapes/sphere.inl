@@ -1,12 +1,12 @@
 void sphere_bounds_func(const struct RTCBoundsFunctionArguments* args) {
     const Sphere *sphere = (const Sphere*) args->geometryUserPtr;
     RTCBounds* bounds_o = args->bounds_o;
-    bounds_o->lower_x = sphere->position.x - sphere->radius;
-    bounds_o->lower_y = sphere->position.y - sphere->radius;
-    bounds_o->lower_z = sphere->position.z - sphere->radius;
-    bounds_o->upper_x = sphere->position.x + sphere->radius;
-    bounds_o->upper_y = sphere->position.y + sphere->radius;
-    bounds_o->upper_z = sphere->position.z + sphere->radius;
+    bounds_o->lower_x = (float)(sphere->position.x - sphere->radius);
+    bounds_o->lower_y = (float)(sphere->position.y - sphere->radius);
+    bounds_o->lower_z = (float)(sphere->position.z - sphere->radius);
+    bounds_o->upper_x = (float)(sphere->position.x + sphere->radius);
+    bounds_o->upper_y = (float)(sphere->position.y + sphere->radius);
+    bounds_o->upper_z = (float)(sphere->position.z + sphere->radius);
 }
 
 /// Numerically stable quadratic equation solver at^2 + bt + c = 0
@@ -87,21 +87,21 @@ void sphere_intersect_func(const RTCIntersectFunctionNArguments* args) {
         Vector3 p = ray.org + t * ray.dir;
         Vector3 geometric_normal = p - sphere->position;
         // rtc_hit->Ng doesn't need to be normalized
-        rtc_hit->Ng_x = geometric_normal.x;
-        rtc_hit->Ng_y = geometric_normal.y;
-        rtc_hit->Ng_z = geometric_normal.z;
+        rtc_hit->Ng_x = (float)geometric_normal.x;
+        rtc_hit->Ng_y = (float)geometric_normal.y;
+        rtc_hit->Ng_z = (float)geometric_normal.z;
         // We use the spherical coordinates as uv
         Vector3 cartesian = geometric_normal / sphere->radius;
         // https://en.wikipedia.org/wiki/Spherical_coordinate_system#Cartesian_coordinates
         // We use the convention that y is up axis.
         Real elevation = acos(std::clamp(cartesian.y, Real(-1), Real(1)));
         Real azimuth = atan2(cartesian.z, cartesian.x);
-        rtc_hit->u = azimuth / c_TWOPI;
-        rtc_hit->v = elevation / c_PI;
+        rtc_hit->u = (float)(azimuth / c_TWOPI);
+        rtc_hit->v = (float)(elevation / c_PI);
         rtc_hit->primID = args->primID;
         rtc_hit->geomID = args->geomID;
         rtc_hit->instID[0] = args->context->instID[0];
-        rtc_ray->tfar = t;
+        rtc_ray->tfar = (float)t;
     }
 }
 
@@ -237,7 +237,7 @@ Real pdf_point_on_shape_op::operator()(const Sphere &sphere) const {
         distance_squared(ref_point, p_on_sphere);
 }
 
-void init_sampling_dist_op::operator()(Sphere &sphere) const {
+void init_sampling_dist_op::operator()(Sphere &) const {
 }
 
 ShadingInfo compute_shading_info_op::operator()(const Sphere &sphere) const {

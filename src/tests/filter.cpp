@@ -12,7 +12,7 @@ Real compute_determinant(const Filter &f, const Vector2 &rnd_param) {
     return det;
 }
 
-int main(int argc, char *argv[]) {
+int main(int, char **) {
     Real width = 2;
     Vector2 rnd_param = Vector2{0.3, 0.4};
     {

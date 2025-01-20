@@ -1,6 +1,6 @@
 #include "../microfacet.h"
 
-Spectrum eval_op::operator()(const DisneyBSDF &bsdf) const {
+Spectrum eval_op::operator()(const DisneyBSDF &) const {
     bool reflect = dot(vertex.geometric_normal, dir_in) *
                    dot(vertex.geometric_normal, dir_out) > 0;
     // Flip the shading frame if it is inconsistent with the geometry normal
@@ -14,7 +14,7 @@ Spectrum eval_op::operator()(const DisneyBSDF &bsdf) const {
     return make_zero_spectrum();
 }
 
-Real pdf_sample_bsdf_op::operator()(const DisneyBSDF &bsdf) const {
+Real pdf_sample_bsdf_op::operator()(const DisneyBSDF &) const {
     bool reflect = dot(vertex.geometric_normal, dir_in) *
                    dot(vertex.geometric_normal, dir_out) > 0;
     // Flip the shading frame if it is inconsistent with the geometry normal
@@ -29,7 +29,7 @@ Real pdf_sample_bsdf_op::operator()(const DisneyBSDF &bsdf) const {
 }
 
 std::optional<BSDFSampleRecord>
-        sample_bsdf_op::operator()(const DisneyBSDF &bsdf) const {
+        sample_bsdf_op::operator()(const DisneyBSDF &) const {
     // Flip the shading frame if it is inconsistent with the geometry normal
     Frame frame = vertex.shading_frame;
     if (dot(frame.n, dir_in) * dot(vertex.geometric_normal, dir_in) < 0) {

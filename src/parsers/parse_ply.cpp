@@ -14,22 +14,22 @@ TriangleMesh parse_ply(const fs::path &filename, const Matrix4x4 &to_world) {
     std::shared_ptr<tinyply::PlyData> vertices, uvs, normals, faces;
     try {
         vertices = ply_file.request_properties_from_element("vertex", { "x", "y", "z" });
-    } catch (const std::exception & e) { 
+    } catch (const std::exception &) { 
         Error(std::string("Vertex positions not found in ") + filename.string());
     }
     try {
         uvs = ply_file.request_properties_from_element("vertex", { "u", "v" });
-    } catch (const std::exception & e) {
+    } catch (const std::exception &) {
         // It's fine to not have UVs    
     }
     try {
         normals = ply_file.request_properties_from_element("vertex", { "nx", "ny", "nz" });
-    } catch (const std::exception & e) {
+    } catch (const std::exception &) {
         // It's fine to not have shading normals
     }
     try {
         faces = ply_file.request_properties_from_element("face", { "vertex_indices" }); 
-    } catch (const std::exception & e) { 
+    } catch (const std::exception &) { 
         Error(std::string("Vertex indices not found in ") + filename.string());
     }
 

@@ -3,6 +3,9 @@
 
 #pragma once
 
+#pragma warning(push)
+#pragma warning(disable : 4324)
+
 #include "rtcore_common.h"
 
 RTC_NAMESPACE_BEGIN
@@ -365,3 +368,4 @@ RTC_FORCEINLINE RTCRayHit rtcGetRayHitFromRayHitN(RTCRayHitN* rayhitN, unsigned 
 
 RTC_NAMESPACE_END
 
+#pragma warning(pop)

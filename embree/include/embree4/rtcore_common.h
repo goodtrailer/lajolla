@@ -3,6 +3,9 @@
 
 #pragma once
 
+#pragma warning(push)
+#pragma warning(disable : 4324)
+
 #include <stddef.h>
 #include <sys/types.h>
 #include <stdbool.h>
@@ -500,3 +503,5 @@ inline decltype(F) rtcGetSYCLDeviceFunctionPointer(sycl::queue& queue)
 #endif
 
 RTC_NAMESPACE_END
+
+#pragma warning(pop)

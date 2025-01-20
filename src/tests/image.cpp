@@ -1,7 +1,7 @@
 #include "../image.h"
 #include <cstdio>
 
-int main(int argc, char *argv[]) {
+int main(int, char **) {
     Image3 img(32, 24);
     for (int y = 0; y < img.height; y++) {
         for (int x = 0; x < img.width; x++) {

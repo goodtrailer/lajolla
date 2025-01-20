@@ -32,7 +32,6 @@ Real compute_determinant(const Material &m,
     if (!sample || !sample_u || !sample_v) {
         printf("FAIL\n");
         exit(1);
-        return 0;
     }
     Vector3 dir_u = (sample_u->dir_out - sample->dir_out) / eps;
     Vector3 dir_v = (sample_v->dir_out - sample->dir_out) / eps;
@@ -52,7 +51,7 @@ Real compute_determinant(const Material &m,
     return sqrt(det);
 }
 
-int main(int argc, char *argv[]) {
+int main(int, char **) {
     // We'll just make sure sampling & PDF are consistent
     Vector2 rnd_param_uv{Real(0.3), Real(0.4)};
     Real rnd_param_w{Real(0.6)};

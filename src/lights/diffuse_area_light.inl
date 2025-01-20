@@ -19,5 +19,5 @@ Spectrum emission_op::operator()(const DiffuseAreaLight &light) const {
     return light.intensity;
 }
 
-void init_sampling_dist_op::operator()(DiffuseAreaLight &light) const {
+void init_sampling_dist_op::operator()(DiffuseAreaLight &) const {
 }

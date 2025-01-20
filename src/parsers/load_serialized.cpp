@@ -102,15 +102,15 @@ ZStream::~ZStream() {
 
 void skip_to_idx(std::fstream &fs, const short version, const size_t idx) {
     // Go to the end of the file to see how many components are there
-    fs.seekg(-sizeof(uint32_t), fs.end);
+    fs.seekg(-(int32_t)sizeof(uint32_t), fs.end);
     uint32_t count = 0;
     fs.read((char *)&count, sizeof(uint32_t));
     size_t offset = 0;
     if (version == MTS_FILEFORMAT_VERSION_V4) {
-        fs.seekg(-sizeof(uint64_t) * (count - idx) - sizeof(uint32_t), fs.end);
+        fs.seekg(-(int32_t)sizeof(uint64_t) * (count - idx) - sizeof(uint32_t), fs.end);
         fs.read((char *)&offset, sizeof(size_t));
     } else {  // V3
-        fs.seekg(-sizeof(uint32_t) * (count - idx + 1), fs.end);
+        fs.seekg(-(int32_t)sizeof(uint32_t) * (count - idx + 1), fs.end);
         uint32_t upos = 0;
         fs.read((char *)&upos, sizeof(unsigned int));
         offset = upos;
@@ -207,9 +207,9 @@ TriangleMesh load_serialized(const fs::path &filename,
 
     TriangleMesh mesh;
     if (file_double_precision) {
-        mesh.positions = load_position<double>(zs, vertex_count);
+        mesh.positions = load_position<double>(zs, (int)vertex_count);
     } else {
-        mesh.positions = load_position<float>(zs, vertex_count);
+        mesh.positions = load_position<float>(zs, (int)vertex_count);
     }
     for (auto &p : mesh.positions) {
         p = xform_point(to_world, p);
@@ -217,9 +217,9 @@ TriangleMesh load_serialized(const fs::path &filename,
 
     if (flags & EHasNormals) {
         if (file_double_precision) {
-            mesh.normals = load_normal<double>(zs, vertex_count);
+            mesh.normals = load_normal<double>(zs, (int)vertex_count);
         } else {
-            mesh.normals = load_normal<float>(zs, vertex_count);
+            mesh.normals = load_normal<float>(zs, (int)vertex_count);
         }
         for (auto &n : mesh.normals) {
             n = xform_normal(inverse(to_world), n);
@@ -228,18 +228,18 @@ TriangleMesh load_serialized(const fs::path &filename,
 
     if (flags & EHasTexcoords) {
         if (file_double_precision) {
-            mesh.uvs = load_uv<double>(zs, vertex_count);
+            mesh.uvs = load_uv<double>(zs, (int)vertex_count);
         } else {
-            mesh.uvs = load_uv<float>(zs, vertex_count);
+            mesh.uvs = load_uv<float>(zs, (int)vertex_count);
         }
     }
 
     if (flags & EHasColors) {
         // Ignore the color attributes.
         if (file_double_precision) {
-            load_color<double>(zs, vertex_count);
+            load_color<double>(zs, (int)vertex_count);
         } else {
-            load_color<float>(zs, vertex_count);
+            load_color<float>(zs, (int)vertex_count);
         }
     }
 

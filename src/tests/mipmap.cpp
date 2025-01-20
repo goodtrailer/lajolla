@@ -2,7 +2,7 @@
 #include "../mipmap.h"
 #include <cstdio>
 
-int main(int argc, char *argv[]) {
+int main(int, char **) {
     Image3 img(64, 64);
     for (int i = 0; i < 64 * 64; i++) {
         img(i) = Vector3{1, 1, 1};

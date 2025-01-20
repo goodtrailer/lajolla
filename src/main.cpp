@@ -27,6 +27,8 @@ int main(int argc, char *argv[]) {
         }
     }
 
+    std::cout << "Using " << num_threads << " threads." << std::endl;
+
     RTCDevice embree_device = rtcNewDevice(nullptr);
     parallel_init(num_threads);
 

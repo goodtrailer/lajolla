@@ -1,7 +1,7 @@
 #include "../frame.h"
 #include <cstdio>
 
-int main(int argc, char *argv[]) {
+int main(int, char **) {
     Frame f(normalize(Vector3{0.3, 0.4, 0.5}));
     Vector3 v = Vector3{-1, -2, -3};
     Vector3 local_v = to_local(f, v);

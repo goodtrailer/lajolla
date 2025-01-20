@@ -1,7 +1,7 @@
 #include "../matrix.h"
 #include <cstdio>
 
-int main(int argc, char *argv[]) {
+int main(int, char **) {
     Matrix4x4 m = Matrix4x4(
         Real(11), Real(2), Real(3), Real(4),
         Real(5), Real(16), Real(7), Real(8),

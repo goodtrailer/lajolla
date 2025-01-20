@@ -67,7 +67,6 @@ bool parse_boolean(const std::string &value) {
         return false;
     } else {
         Error("parse_boolean failed");
-        return false;
     }
 }
 
@@ -306,7 +305,6 @@ Spectrum parse_color(pugi::xml_node node,
         return make_const_spectrum(parse_float(node.attribute("value").value(), default_map));
     } else {
         Error(std::string("Unknown color type:") + type);
-        return make_zero_spectrum();
     }
 }
 
@@ -379,7 +377,6 @@ ParsedTexture parse_texture(pugi::xml_node node,
             "", color0, color1, uscale, vscale, uoffset, voffset};
     }
     Error(std::string("Unknown texture type: ") + type);
-    return ParsedTexture{};
 }
 
 Texture<Spectrum> parse_spectrum_texture(
@@ -443,7 +440,6 @@ Texture<Spectrum> parse_spectrum_texture(
         }
     } else {
         Error(std::string("Unknown spectrum texture type:") + type);
-        return ConstantTexture<Spectrum>{make_zero_spectrum()};
     }
 }
 
@@ -493,7 +489,6 @@ Texture<Real> parse_float_texture(
         }
     } else {
         Error(std::string("Unknown float texture type:") + type);
-        return make_constant_float_texture(Real(0));
     }
 }
 
@@ -668,7 +663,6 @@ VolumeSpectrum parse_volume_spectrum(pugi::xml_node node,
     } else {
         Error(std::string("Unknown volume type:") + type);
     }
-    return ConstantVolume<Spectrum>{make_zero_spectrum()};
 }
 
 PhaseFunction parse_phase_function(pugi::xml_node node,
@@ -688,7 +682,6 @@ PhaseFunction parse_phase_function(pugi::xml_node node,
     } else {
         Error(std::string("Unrecognized phase function:") + type);
     }
-    return IsotropicPhase{};
 }
 
 std::tuple<std::string /* ID */, Medium> parse_medium(
@@ -752,7 +745,7 @@ std::tuple<Camera, std::string /* output filename */, ParsedSampler>
                      const std::map<std::string, std::string> &default_map) {
     Real fov = c_default_fov;
     Matrix4x4 to_world = Matrix4x4::identity();
-    int width = c_default_res, height = c_default_res;
+    int image_width = c_default_res, image_height = c_default_res;
     std::string filename = c_default_filename;
     Filter filter = c_default_filter;
     FovAxis fov_axis = FovAxis::X;
@@ -790,15 +783,15 @@ std::tuple<Camera, std::string /* output filename */, ParsedSampler>
 
     for (auto child : node.children()) {
         if (std::string(child.name()) == "film") {
-            std::tie(width, height, filename, filter) = parse_film(child, default_map);
+            std::tie(image_width, image_height, filename, filter) = parse_film(child, default_map);
         } else if (std::string(child.name()) == "sampler") {
-            std::string name = child.attribute("type").value();
-            if (name != "independent") {
+            std::string child_name = child.attribute("type").value();
+            if (child_name != "independent") {
                 std::cerr << "Warning: the renderer currently only supports independent samplers." << std::endl;
             }
             for (auto grand_child : child.children()) {
-                std::string name = grand_child.attribute("name").value();
-                if (name == "sampleCount" || name == "sample_count") {
+                std::string grand_name = grand_child.attribute("name").value();
+                if (grand_name == "sampleCount" || grand_name == "sample_count") {
                     sampler.sample_count = parse_integer(
                         grand_child.attribute("value").value(), default_map);
                 }
@@ -819,10 +812,10 @@ std::tuple<Camera, std::string /* output filename */, ParsedSampler>
             std::string medium_name;
             std::tie(medium_name, m) = parse_medium(child, default_map);
             if (!medium_name.empty()) {
-                medium_map[medium_name] = media.size();
+                medium_map[medium_name] = (int)media.size();
             }
             std::string name_value = child.attribute("name").value();
-            medium_id = media.size();
+            medium_id = (int)media.size();
             media.push_back(m);
         }
     }
@@ -830,19 +823,19 @@ std::tuple<Camera, std::string /* output filename */, ParsedSampler>
     // convert to fovX (code taken from 
     // https://github.com/mitsuba-renderer/mitsuba/blob/master/src/librender/sensor.cpp)
     if (fov_axis == FovAxis::Y ||
-            (fov_axis == FovAxis::SMALLER && height < width) ||
-            (fov_axis == FovAxis::LARGER && width < height)) {
-        Real aspect = width / Real(height);
+            (fov_axis == FovAxis::SMALLER && image_height < image_width) ||
+            (fov_axis == FovAxis::LARGER && image_width < image_height)) {
+        Real aspect = image_width / Real(image_height);
         fov = degrees(2 * atan(
             tan(radians(fov) / 2) * aspect));
     } else if (fov_axis == FovAxis::DIAGONAL) {
-        Real aspect = width / Real(height);
+        Real aspect = image_width / Real(image_height);
         Real diagonal = 2 * tan(radians(fov) / 2);
         Real width = diagonal / sqrt(1 + 1 / (aspect * aspect));
         fov = degrees(2 * atan(width / 2));
     }
 
-    return std::make_tuple(Camera(to_world, fov, width, height, filter, medium_id),
+    return std::make_tuple(Camera(to_world, fov, image_width, image_height, filter, medium_id),
                            filename, sampler);
 }
 
@@ -1219,22 +1212,22 @@ Shape parse_shape(pugi::xml_node node,
             std::tie(material_name, m) = parse_bsdf(
                 child, texture_map, texture_pool, default_map);
             if (!material_name.empty()) {
-                material_map[material_name] = materials.size();
+                material_map[material_name] = (int)materials.size();
             }
-            material_id = materials.size();
+            material_id = (int)materials.size();
             materials.push_back(m);
         } else if (name == "medium") {
             Medium m;
             std::string medium_name;
             std::tie(medium_name, m) = parse_medium(child, default_map);
             if (!medium_name.empty()) {
-                medium_map[medium_name] = media.size();
+                medium_map[medium_name] = (int)media.size();
             }
             std::string name_value = child.attribute("name").value();
             if (name_value == "interior") {
-                interior_medium_id = media.size();
+                interior_medium_id = (int)media.size();
             } else if (name_value == "exterior") {
-                exterior_medium_id = media.size();
+                exterior_medium_id = (int)media.size();
             } else {
                 Error(std::string("Unrecognized medium name: ") + name_value);
             }
@@ -1389,16 +1382,16 @@ Shape parse_shape(pugi::xml_node node,
     set_exterior_medium_id(shape, exterior_medium_id);
 
     for (auto child : node.children()) {
-        std::string name = child.name();
-        if (name == "emitter") {
+        std::string child_name = child.name();
+        if (child_name == "emitter") {
             Spectrum radiance = fromRGB(Vector3{1, 1, 1});
             for (auto grand_child : child.children()) {
-                std::string name = grand_child.attribute("name").value();
-                if (name == "radiance") {
+                std::string grand_child_name = grand_child.attribute("name").value();
+                if (grand_child_name == "radiance") {
                     radiance = parse_intensity(grand_child, default_map);
                 }
             }
-            set_area_light_id(shape, lights.size());
+            set_area_light_id(shape, (int)lights.size());
             lights.push_back(DiffuseAreaLight{(int)shapes.size() /* shape ID */, radiance});
         }
     }
@@ -1429,26 +1422,26 @@ std::unique_ptr<Scene> parse_scene(pugi::xml_node node, const RTCDevice &embree_
 
     int envmap_light_id = -1;
     for (auto child : node.children()) {
-        std::string name = child.name();
-        if (name == "default") {
+        std::string child_name = child.name();
+        if (child_name == "default") {
             parse_default_map(child, default_map);
-        } else if (name == "integrator") {
+        } else if (child_name == "integrator") {
             options = parse_integrator(child, default_map);
-        } else if (name == "sensor") {
+        } else if (child_name == "sensor") {
             ParsedSampler sampler;
             std::tie(camera, filename, sampler) =
                 parse_sensor(child, media, medium_map, default_map);
             options.samples_per_pixel = sampler.sample_count;
-        } else if (name == "bsdf") {
+        } else if (child_name == "bsdf") {
             std::string material_name;
             Material m;
             std::tie(material_name, m) = parse_bsdf(
                 child, texture_map, texture_pool, default_map);
             if (!material_name.empty()) {
-                material_map[material_name] = materials.size();
+                material_map[material_name] = (int)materials.size();
                 materials.push_back(m);
             }
-        } else if (name == "shape") {
+        } else if (child_name == "shape") {
             Shape s = parse_shape(child,
                                   materials,
                                   material_map,
@@ -1460,33 +1453,33 @@ std::unique_ptr<Scene> parse_scene(pugi::xml_node node, const RTCDevice &embree_
                                   shapes,
                                   default_map);
             shapes.push_back(s);
-        } else if (name == "texture") {
+        } else if (child_name == "texture") {
             std::string id = child.attribute("id").value();
             if (texture_map.find(id) != texture_map.end()) {
                 Error(std::string("Duplicated texture ID:") + id);
             }
             texture_map[id] = parse_texture(child, default_map);
-        } else if (name == "emitter") {
+        } else if (child_name == "emitter") {
             std::string type = child.attribute("type").value();
             if (type == "envmap") {
-                std::string filename;
+                std::string envmap_filename;
                 Real scale = 1;
                 Matrix4x4 to_world = Matrix4x4::identity();
                 for (auto grand_child : child.children()) {
-                    std::string name = grand_child.attribute("name").value();
-                    if (name == "filename") {
-                        filename = parse_string(
+                    std::string grand_child_name = grand_child.attribute("name").value();
+                    if (grand_child_name == "filename") {
+                        envmap_filename = parse_string(
                             grand_child.attribute("value").value(), default_map);
-                    } else if (name == "toWorld" || name == "to_world") {
+                    } else if (grand_child_name == "toWorld" || grand_child_name == "to_world") {
                         to_world = parse_transform(grand_child, default_map);
-                    } else if (name == "scale") {
+                    } else if (grand_child_name == "scale") {
                         scale = parse_float(
                             grand_child.attribute("value").value(), default_map);
                     }
                 }
-                if (filename.size() > 0) {
+                if (envmap_filename.size() > 0) {
                     Texture<Spectrum> t = make_image_spectrum_texture(
-                        "__envmap_texture__", filename, texture_pool, 1, 1);
+                        "__envmap_texture__", envmap_filename, texture_pool, 1, 1);
                     Matrix4x4 to_local = inverse(to_world);
                     lights.push_back(Envmap{t, to_world, to_local, scale});
                     envmap_light_id = (int)lights.size() - 1;
@@ -1498,8 +1491,8 @@ std::unique_ptr<Scene> parse_scene(pugi::xml_node node, const RTCDevice &embree_
                 Vector3 position = Vector3{0, 0, 0};
                 Spectrum intensity = make_const_spectrum(1);
                 for (auto grand_child : child.children()) {
-                    std::string name = grand_child.attribute("name").value();
-                    if (name == "position") {
+                    std::string grand_child_name = grand_child.attribute("name").value();
+                    if (grand_child_name == "position") {
                         if (!grand_child.attribute("x").empty()) {
                             position.x = parse_float(grand_child.attribute("x").value(), default_map);
                         }
@@ -1509,7 +1502,7 @@ std::unique_ptr<Scene> parse_scene(pugi::xml_node node, const RTCDevice &embree_
                         if (!grand_child.attribute("z").empty()) {
                             position.z = parse_float(grand_child.attribute("z").value(), default_map);
                         }
-                    } else if (name == "intensity") {
+                    } else if (grand_child_name == "intensity") {
                         intensity = parse_intensity(grand_child, default_map);
                     }
                 }
@@ -1517,10 +1510,10 @@ std::unique_ptr<Scene> parse_scene(pugi::xml_node node, const RTCDevice &embree_
                 intensity *= (c_FOURPI / surface_area(s));
                 Material m = Lambertian{
                     make_constant_spectrum_texture(make_zero_spectrum())};
-                int material_id = materials.size();
+                int material_id = (int)materials.size();
                 materials.push_back(m);
                 set_material_id(s, material_id);
-                set_area_light_id(s, lights.size());
+                set_area_light_id(s, (int)lights.size());
                 lights.push_back(DiffuseAreaLight{(int)shapes.size() /* shape ID */, intensity});
                 shapes.push_back(s);
             } else if (type == "directional") {
@@ -1528,8 +1521,8 @@ std::unique_ptr<Scene> parse_scene(pugi::xml_node node, const RTCDevice &embree_
                 Vector3 direction = Vector3{0, 0, 1};
                 Spectrum intensity = make_const_spectrum(1);
                 for (auto grand_child : child.children()) {
-                    std::string name = grand_child.attribute("name").value();
-                    if (name == "direction") {
+                    std::string grand_child_name = grand_child.attribute("name").value();
+                    if (grand_child_name == "direction") {
                         if (!grand_child.attribute("x").empty()) {
                             direction.x = parse_float(grand_child.attribute("x").value(), default_map);
                         }
@@ -1539,10 +1532,10 @@ std::unique_ptr<Scene> parse_scene(pugi::xml_node node, const RTCDevice &embree_
                         if (!grand_child.attribute("z").empty()) {
                             direction.z = parse_float(grand_child.attribute("z").value(), default_map);
                         }
-                    } else if (name == "toWorld" || name == "to_world") {
+                    } else if (grand_child_name == "toWorld" || grand_child_name == "to_world") {
                         Matrix4x4 to_world = parse_transform(grand_child, default_map);
                         direction = xform_vector(to_world, direction);
-                    } else if (name == "irradiance") {
+                    } else if (grand_child_name == "irradiance") {
                         intensity = parse_intensity(grand_child, default_map);
                     }
                 }
@@ -1567,21 +1560,21 @@ std::unique_ptr<Scene> parse_scene(pugi::xml_node node, const RTCDevice &embree_
                 Shape s = mesh;
                 Material m = Lambertian{
                     make_constant_spectrum_texture(make_zero_spectrum())};
-                int material_id = materials.size();
+                int material_id = (int)materials.size();
                 materials.push_back(m);
                 set_material_id(s, material_id);
-                set_area_light_id(s, lights.size());
+                set_area_light_id(s, (int)lights.size());
                 lights.push_back(DiffuseAreaLight{(int)shapes.size() /* shape ID */, intensity});
                 shapes.push_back(s);
             } else {
                 Error(std::string("Unknown emitter type:") + type);
             }
-        } else if (name == "medium") {
+        } else if (child_name == "medium") {
             std::string medium_name;
             Medium m;
             std::tie(medium_name, m) = parse_medium(child, default_map);
             if (!medium_name.empty()) {
-                medium_map[medium_name] = media.size();
+                medium_map[medium_name] = (int)media.size();
                 media.push_back(m);
             }
         }

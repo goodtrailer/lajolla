@@ -1,6 +1,6 @@
 #include "../microfacet.h"
 
-Spectrum eval_op::operator()(const DisneyClearcoat &bsdf) const {
+Spectrum eval_op::operator()(const DisneyClearcoat &) const {
     if (dot(vertex.geometric_normal, dir_in) < 0 ||
             dot(vertex.geometric_normal, dir_out) < 0) {
         // No light below the surface
@@ -16,7 +16,7 @@ Spectrum eval_op::operator()(const DisneyClearcoat &bsdf) const {
     return make_zero_spectrum();
 }
 
-Real pdf_sample_bsdf_op::operator()(const DisneyClearcoat &bsdf) const {
+Real pdf_sample_bsdf_op::operator()(const DisneyClearcoat &) const {
     if (dot(vertex.geometric_normal, dir_in) < 0 ||
             dot(vertex.geometric_normal, dir_out) < 0) {
         // No light below the surface
@@ -33,7 +33,7 @@ Real pdf_sample_bsdf_op::operator()(const DisneyClearcoat &bsdf) const {
 }
 
 std::optional<BSDFSampleRecord>
-        sample_bsdf_op::operator()(const DisneyClearcoat &bsdf) const {
+        sample_bsdf_op::operator()(const DisneyClearcoat &) const {
     if (dot(vertex.geometric_normal, dir_in) < 0) {
         // No light below the surface
         return {};
@@ -48,6 +48,6 @@ std::optional<BSDFSampleRecord>
     return {};
 }
 
-TextureSpectrum get_texture_op::operator()(const DisneyClearcoat &bsdf) const {
+TextureSpectrum get_texture_op::operator()(const DisneyClearcoat &) const {
     return make_constant_spectrum_texture(make_zero_spectrum());
 }

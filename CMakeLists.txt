@@ -10,7 +10,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(CMAKE_BUILD_TYPE RelWithDebInfo)
 
 if(MSVC)
-  add_compile_options(/Wall)
+  add_compile_options(/W4)
 else()
   add_compile_options(-Wall)
 endif()
@@ -21,15 +21,16 @@ link_libraries(${EMBREE_LIBRARY})
 
 include_directories(${CMAKE_SOURCE_DIR}/src)
 
-set(SRCS src/3rdparty/miniz.h
-         src/3rdparty/miniz.c
-         src/3rdparty/pugiconfig.hpp
-         src/3rdparty/pugixml.hpp
-         src/3rdparty/pugixml.cpp
-         src/3rdparty/stb_image.h
-         src/3rdparty/tinyexr.h
-         src/3rdparty/tinyply.h
-         src/filters/box.inl
+set(SRCS_3RDPARTY src/3rdparty/miniz.h
+                  src/3rdparty/miniz.c
+                  src/3rdparty/pugiconfig.hpp
+                  src/3rdparty/pugixml.hpp
+                  src/3rdparty/pugixml.cpp
+                  src/3rdparty/stb_image.h
+                  src/3rdparty/tinyexr.h
+                  src/3rdparty/tinyply.h)
+
+set(SRCS src/filters/box.inl
          src/filters/gaussian.inl
          src/filters/tent.inl
          src/lights/diffuse_area_light.inl
@@ -101,7 +102,7 @@ set(SRCS src/3rdparty/miniz.h
          src/transform.cpp
          src/volume.cpp)
 
-add_library(lajolla_lib STATIC ${SRCS})
+add_library(lajolla_lib STATIC ${SRCS} ${SRCS_3RDPARTY})
 add_executable(lajolla src/main.cpp)
 target_link_libraries(lajolla lajolla_lib)
 if(MSVC)
@@ -110,6 +111,8 @@ if(MSVC)
       "${PROJECT_SOURCE_DIR}/embree/bin"
       $<TARGET_FILE_DIR:lajolla>)
 endif()
+
+set_source_files_properties(${SRCS_3RDPARTY} PROPERTIES COMPILE_OPTIONS "-w")
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)

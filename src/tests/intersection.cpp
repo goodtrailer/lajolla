@@ -1,7 +1,7 @@
 #include "../scene.h"
 #include "../intersection.h"
 
-int main(int argc, char *argv[]) {
+int main(int, char **) {
 
     RTCDevice embree_device = rtcNewDevice(nullptr);
     Camera cam;

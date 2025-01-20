@@ -41,7 +41,7 @@ namespace fs = std::filesystem;
 
 inline std::string to_lowercase(const std::string &s) {
     std::string out = s;
-    std::transform(s.begin(), s.end(), out.begin(), ::tolower);
+    std::transform(s.begin(), s.end(), out.begin(), [](char c) { return (char)::tolower(c); });
     return out;
 }
 
