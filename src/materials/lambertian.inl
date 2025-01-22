@@ -16,7 +16,7 @@ Spectrum eval_op::operator()(const Lambertian &bsdf) const {
            eval(bsdf.reflectance, vertex.uv, vertex.uv_screen_size, texture_pool) / c_PI;
 }
 
-Real pdf_sample_bsdf_op::operator()([[maybe_unused]] const Lambertian &bsdf) const {
+Real pdf_sample_bsdf_op::operator()(const Lambertian &) const {
     if (dot(vertex.geometric_normal, dir_in) < 0 ||
             dot(vertex.geometric_normal, dir_out) < 0) {
         // No light below the surface
