@@ -1,11 +1,6 @@
 #include "../microfacet.h"
 
 Spectrum eval_op::operator()(const DisneyMetal &bsdf) const {
-    if (dot(vertex.geometric_normal, dir_in) < 0 ||
-            dot(vertex.geometric_normal, dir_out) < 0) {
-        // No light below the surface
-        return make_zero_spectrum();
-    }
     // Flip the shading frame if it is inconsistent with the geometry normal
     Frame frame = vertex.shading_frame;
     if (dot(frame.n, dir_in) < 0) {
@@ -63,11 +58,6 @@ Spectrum eval_op::operator()(const DisneyMetal &bsdf) const {
 }
 
 Real pdf_sample_bsdf_op::operator()(const DisneyMetal &bsdf) const {
-    if (dot(vertex.geometric_normal, dir_in) < 0 ||
-            dot(vertex.geometric_normal, dir_out) < 0) {
-        // No light below the surface
-        return 0;
-    }
     // Flip the shading frame if it is inconsistent with the geometry normal
     Frame frame = vertex.shading_frame;
     if (dot(frame.n, dir_in) < 0) {
@@ -75,13 +65,6 @@ Real pdf_sample_bsdf_op::operator()(const DisneyMetal &bsdf) const {
     }
 
     Vector3 dir_micronormal = normalize(dir_in + dir_out);
-
-    // No light below the interpolated surface
-    // No reversed microsurface
-    // No light below the microsurface (not possible by sampling algorithm)
-    if (dot(frame.n, dir_in) <= 0 || dot(frame.n, dir_micronormal) <= 0 /*|| dot(dir_micronormal, dir_in) <= 0*/) {
-        return 0;
-    }
 
     // Clamp roughness to avoid numerical issues.
     Real roughness = std::clamp(eval(bsdf.roughness, vertex.uv, vertex.uv_screen_size, texture_pool), Real(0.01), Real(1));
@@ -119,7 +102,8 @@ Real pdf_sample_bsdf_op::operator()(const DisneyMetal &bsdf) const {
     }
 
     // Real visible_distribution = masking_in * dot_microni * distribution / dot_ni;
-    // Real pdf = visible_distribution / (4 * dot_microni);
+    // Real dh_dout = 1 / 4 * dot_microni;
+    // Real pdf = visible_distribution * dh_dout;
 
     // "Simplify" computation above; Can cancel out dot_microni to improve numerical stability
     Real pdf = masking_in * distribution / (4 * dot_ni);
@@ -131,7 +115,7 @@ std::optional<BSDFSampleRecord>
         sample_bsdf_op::operator()(const DisneyMetal &bsdf) const {
     if (dot(vertex.geometric_normal, dir_in) < 0) {
         // No light below the surface
-        return {};
+        return std::nullopt;
     }
     // Flip the shading frame if it is inconsistent with the geometry normal
     Frame frame = vertex.shading_frame;
@@ -176,6 +160,10 @@ std::optional<BSDFSampleRecord>
 
     Vector3 dir_micronormal = to_world(frame, dir_local_micronormal);
     Vector3 dir_out = -dir_in + 2 * dot(dir_in, dir_micronormal) * dir_micronormal;
+
+    if (dot(vertex.geometric_normal, dir_out) < 0) {
+        return std::nullopt;
+    }
 
     return BSDFSampleRecord { dir_out, 0, roughness };
 }

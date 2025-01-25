@@ -1,11 +1,6 @@
 #include "../microfacet.h"
 
 Spectrum eval_op::operator()(const DisneySheen &bsdf) const {
-    if (dot(vertex.geometric_normal, dir_in) < 0 ||
-            dot(vertex.geometric_normal, dir_out) < 0) {
-        // No light below the surface
-        return make_zero_spectrum();
-    }
     // Flip the shading frame if it is inconsistent with the geometry normal
     Frame frame = vertex.shading_frame;
     if (dot(frame.n, dir_in) < 0) {
@@ -31,11 +26,6 @@ Spectrum eval_op::operator()(const DisneySheen &bsdf) const {
 }
 
 Real pdf_sample_bsdf_op::operator()(const DisneySheen &) const {
-    if (dot(vertex.geometric_normal, dir_in) < 0 ||
-            dot(vertex.geometric_normal, dir_out) < 0) {
-        // No light below the surface
-        return 0;
-    }
     // Flip the shading frame if it is inconsistent with the geometry normal
     Frame frame = vertex.shading_frame;
     if (dot(frame.n, dir_in) < 0) {
@@ -51,7 +41,7 @@ std::optional<BSDFSampleRecord>
         sample_bsdf_op::operator()(const DisneySheen &) const {
     if (dot(vertex.geometric_normal, dir_in) < 0) {
         // No light below the surface
-        return {};
+        return std::nullopt;
     }
     // Flip the shading frame if it is inconsistent with the geometry normal
     Frame frame = vertex.shading_frame;
@@ -60,6 +50,10 @@ std::optional<BSDFSampleRecord>
     }
 
     Vector3 dir_out = to_world(frame, sample_cos_hemisphere(rnd_param_uv));
+
+    if (dot(vertex.geometric_normal, dir_out) < 0) {
+        return std::nullopt;
+    }
 
     return BSDFSampleRecord { dir_out, 0, 1 };
 }

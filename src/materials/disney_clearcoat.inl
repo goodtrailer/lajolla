@@ -1,11 +1,6 @@
 #include "../microfacet.h"
 
 Spectrum eval_op::operator()(const DisneyClearcoat &bsdf) const {
-    if (dot(vertex.geometric_normal, dir_in) < 0 ||
-            dot(vertex.geometric_normal, dir_out) < 0) {
-        // No light below the surface
-        return make_zero_spectrum();
-    }
     // Flip the shading frame if it is inconsistent with the geometry normal
     Frame frame = vertex.shading_frame;
     if (dot(frame.n, dir_in) < 0) {
@@ -62,11 +57,6 @@ Spectrum eval_op::operator()(const DisneyClearcoat &bsdf) const {
 }
 
 Real pdf_sample_bsdf_op::operator()(const DisneyClearcoat &bsdf) const {
-    if (dot(vertex.geometric_normal, dir_in) < 0 ||
-            dot(vertex.geometric_normal, dir_out) < 0) {
-        // No light below the surface
-        return 0;
-    }
     // Flip the shading frame if it is inconsistent with the geometry normal
     Frame frame = vertex.shading_frame;
     if (dot(frame.n, dir_in) < 0) {
@@ -74,13 +64,6 @@ Real pdf_sample_bsdf_op::operator()(const DisneyClearcoat &bsdf) const {
     }
 
     Vector3 dir_micronormal = normalize(dir_in + dir_out);
-
-    // No light below the interpolated surface
-    // No reversed microsurface
-    // No light below the microsurface (not possible by sampling algorithm)
-    if (dot(frame.n, dir_in) <= 0 || dot(frame.n, dir_micronormal) <= 0 /*|| dot(dir_micronormal, dir_in) <= 0*/) {
-        return 0;
-    }
 
     Real clearcoat_gloss = eval(bsdf.clearcoat_gloss, vertex.uv, vertex.uv_screen_size, texture_pool);
     
@@ -104,7 +87,7 @@ std::optional<BSDFSampleRecord>
         sample_bsdf_op::operator()(const DisneyClearcoat &bsdf) const {
     if (dot(vertex.geometric_normal, dir_in) < 0) {
         // No light below the surface
-        return {};
+        return std::nullopt;
     }
     // Flip the shading frame if it is inconsistent with the geometry normal
     Frame frame = vertex.shading_frame;
@@ -132,6 +115,10 @@ std::optional<BSDFSampleRecord>
 
     Vector3 dir_micronormal = to_world(frame, dir_local_micronormal);
     Vector3 dir_out = -dir_in + 2 * dot(dir_in, dir_micronormal) * dir_micronormal;
+
+    if (dot(vertex.geometric_normal, dir_out) < 0) {
+        return std::nullopt;
+    }
 
     return BSDFSampleRecord { dir_out, 0, 1 };
 }
