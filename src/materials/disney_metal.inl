@@ -151,22 +151,25 @@ std::optional<BSDFSampleRecord>
 
     Vector3 dir_local_micronormal;
     {
-        Vector3 ellipsoid_in = Vector3 { alpha_x, alpha_y, Real(1) } * dir_local_in;
-        Frame frame_ellipsoid_hemi { normalize(ellipsoid_in) };
+
+        Frame frame_hemi_in { normalize(Vector3 { alpha_x, alpha_y, Real(1) } * dir_local_in) };
 
         Real r = sqrt(rnd_param_uv.x);
-        Real phi = 2 * c_PI * rnd_param_uv.y;
+        Real phi = c_TWOPI * rnd_param_uv.y;
         Real x = r * cos(phi);
 
-        Real s = (1 + frame_ellipsoid_hemi.n.z) / 2;
+        Real s = (1 + frame_hemi_in.n.z) / 2;
         Real y = (1 - s) * sqrt(1 - x * x) + s * r * sin(phi);
 
         Real z = sqrt(max(Real(0), 1 - x * x - y * y));
 
-        Vector3 dir_hemi_micronormal = { x, y, z };
-        Vector3 dir_ellipsoid_micronormal = to_world(frame_ellipsoid_hemi, dir_hemi_micronormal);
+        Vector3 dir_in_micronormal = { x, y, z };
+        Vector3 dir_hemi_micronormal = to_world(frame_hemi_in, dir_in_micronormal);
 
-        dir_local_micronormal = normalize(Vector3 { alpha_x, alpha_y, Real(1) } * dir_ellipsoid_micronormal);
+        Vector3 vec_local_micronormal = Vector3 { alpha_x, alpha_y, Real(1) } * dir_hemi_micronormal;
+        vec_local_micronormal.z = max(Real(0), vec_local_micronormal.z);
+
+        dir_local_micronormal = normalize(vec_local_micronormal);
         // WARNING: sample_visible_normals does not support anisotropy
         // dir_local_micronormal = sample_visible_normals(dir_local_in, roughness * roughness, rnd_param_uv);
     }
