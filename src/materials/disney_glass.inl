@@ -271,7 +271,6 @@ std::optional<BSDFSampleRecord> sample_bsdf_op::operator()(const DisneyGlass& bs
         }
     }
 
-    
     Vector3 dir_out;
     Real ior_out;
     {
