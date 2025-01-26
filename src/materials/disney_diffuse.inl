@@ -1,4 +1,8 @@
 Spectrum eval_op::operator()(const DisneyDiffuse &bsdf) const {
+    if (dot(vertex.geometric_normal, dir_in) < 0 || dot(vertex.geometric_normal, dir_out) < 0) {
+        return make_zero_spectrum();
+    }
+
     // Flip the shading frame if it is inconsistent with the geometry normal
     Frame frame = vertex.shading_frame;
     if (dot(frame.n, dir_in) < 0) {
@@ -35,10 +39,19 @@ Spectrum eval_op::operator()(const DisneyDiffuse &bsdf) const {
         f_subsurface = Real(1.25) * base_color / c_PI * (fresnel_in * fresnel_out * (1 / (dot_ni + dot_no) - Real(0.5)) + Real(0.5)) * dot_no;
     }
 
-    return (1 - subsurface) * f_base_diffuse + subsurface * f_subsurface;
+    // Lerping between diffuse and (fake) subsurface scattering is not really
+    // accurate at all, and it is generally only used for thin-surface models.
+    // But true subsurface scattering is beyond the scope of hw1.
+    Spectrum f = (1 - subsurface) * f_base_diffuse + subsurface * f_subsurface;
+
+    return f;
 }
 
-Real pdf_sample_bsdf_op::operator()(const DisneyDiffuse &) const {
+Real pdf_sample_bsdf_op::operator()(const DisneyDiffuse&) const {
+    if (dot(vertex.geometric_normal, dir_in) < 0 || dot(vertex.geometric_normal, dir_out) < 0) {
+        return 0;
+    }
+
     // Flip the shading frame if it is inconsistent with the geometry normal
     Frame frame = vertex.shading_frame;
     if (dot(frame.n, dir_in) < 0) {

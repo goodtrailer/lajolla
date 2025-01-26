@@ -102,10 +102,10 @@ Spectrum eval_op::operator()(const DisneyGlass &bsdf) const {
             Real aux = dot(dir_micronormal, dir_in) + ior_relative * dot(dir_micronormal, dir_out);
             Real denom = dot_ni * aux * aux;
 
-            // I'm extremely skeptical of needing a sqrt on the base color for refraction.
-            // The argument that "it has two intersections, in + out" is not at all convincing.
-            // I was also unable to find any references to this in the literature. But I could
-            // be completely wrong here.
+            // This sqrt is so that the user provided color is observed after
+            // two transmissions, which is more intuitive. However, this should
+            // be removed in thin-surface models (which this is not, because we
+            // do refract rays; for thin-surfaces, refraction effects are negligible).
             f = sqrt(base_color) * numer / denom;
             // f = base_color * numer / denom;
         }
@@ -114,8 +114,7 @@ Spectrum eval_op::operator()(const DisneyGlass &bsdf) const {
     return f;
 }
 
-Real pdf_sample_bsdf_op::operator()(const DisneyGlass& bsdf) const
-{
+Real pdf_sample_bsdf_op::operator()(const DisneyGlass& bsdf) const {
     // Flip the shading frame if it is inconsistent with the geometry normal
     Frame frame = vertex.shading_frame;
     if (dot(frame.n, dir_in) * dot(vertex.geometric_normal, dir_in) < 0) {
@@ -142,6 +141,10 @@ Real pdf_sample_bsdf_op::operator()(const DisneyGlass& bsdf) const
     Real dot_ni = abs(dot(frame.n, dir_in));
     Real dot_microni = abs(dot(dir_micronormal, dir_in));
     Real dot_microno = abs(dot(dir_micronormal, dir_out));
+
+    if (length_squared(dir_micronormal) == 0) {
+        return 0;
+    }
 
     Real fresnel_reflection;
     {
@@ -248,6 +251,10 @@ std::optional<BSDFSampleRecord> sample_bsdf_op::operator()(const DisneyGlass& bs
     Vector3 dir_micronormal = to_world(frame, dir_local_micronormal);
 
     Real dot_microni = abs(dot(dir_micronormal, dir_in));
+
+    if (length_squared(dir_micronormal) == 0) {
+        return std::nullopt;
+    }
 
     Real ior_in = dot(vertex.geometric_normal, dir_in) < 0 ? bsdf.eta : 1;
     Real ior_other = bsdf.eta / ior_in;
