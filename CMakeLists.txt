@@ -30,59 +30,60 @@ set(SRCS_3RDPARTY src/3rdparty/miniz.h
                   src/3rdparty/tinyexr.h
                   src/3rdparty/tinyply.h)
 
-set(SRCS src/filters/box.inl
-         src/filters/gaussian.inl
-         src/filters/tent.inl
-         src/lights/diffuse_area_light.inl
-         src/lights/envmap.inl
-         src/materials/lambertian.inl
-         src/materials/roughdielectric.inl
-         src/materials/roughplastic.inl
-         src/materials/disney_diffuse.inl
-         src/materials/disney_metal.inl
-         src/materials/disney_glass.inl
-         src/materials/disney_clearcoat.inl
-         src/materials/disney_sheen.inl
-         src/materials/disney_bsdf.inl
-         src/media/homogeneous.inl
-         src/media/heterogeneous.inl
-         src/parsers/load_serialized.h
-         src/parsers/parse_obj.h
-         src/parsers/parse_ply.h
-         src/parsers/parse_scene.h
-         src/phase_functions/isotropic.inl
-         src/phase_functions/henyeygreenstein.inl
-         src/shapes/sphere.inl
-         src/shapes/triangle_mesh.inl
-         src/camera.h
-         src/filter.h
-         src/flexception.h
-         src/frame.h
-         src/image.h
-         src/intersection.h
-         src/lajolla.h
-         src/light.h
-         src/material.h
-         src/matrix.h
-         src/medium.h
-         src/microfacet.h
-         src/mipmap.h
-         src/parallel.h
-         src/path_tracing.h
-         src/phase_function.h
-         src/vol_path_tracing.h
-         src/volume.h
-         src/point_and_normal.h
-         src/ray.h
-         src/render.h
-         src/scene.h
-         src/shape.h
-         src/spectrum.h
-         src/table_dist.h
-         src/texture.h
-         src/transform.h
-         src/vector.h
-         src/parsers/load_serialized.cpp
+set(SRCS_H src/filters/box.inl
+           src/filters/gaussian.inl
+           src/filters/tent.inl
+           src/lights/diffuse_area_light.inl
+           src/lights/envmap.inl
+           src/materials/lambertian.inl
+           src/materials/roughdielectric.inl
+           src/materials/roughplastic.inl
+           src/materials/disney_diffuse.inl
+           src/materials/disney_metal.inl
+           src/materials/disney_glass.inl
+           src/materials/disney_clearcoat.inl
+           src/materials/disney_sheen.inl
+           src/materials/disney_bsdf.inl
+           src/media/homogeneous.inl
+           src/media/heterogeneous.inl
+           src/parsers/load_serialized.h
+           src/parsers/parse_obj.h
+           src/parsers/parse_ply.h
+           src/parsers/parse_scene.h
+           src/phase_functions/isotropic.inl
+           src/phase_functions/henyeygreenstein.inl
+           src/shapes/sphere.inl
+           src/shapes/triangle_mesh.inl
+           src/camera.h
+           src/filter.h
+           src/flexception.h
+           src/frame.h
+           src/image.h
+           src/intersection.h
+           src/lajolla.h
+           src/light.h
+           src/material.h
+           src/matrix.h
+           src/medium.h
+           src/microfacet.h
+           src/mipmap.h
+           src/parallel.h
+           src/path_tracing.h
+           src/phase_function.h
+           src/vol_path_tracing.h
+           src/volume.h
+           src/point_and_normal.h
+           src/ray.h
+           src/render.h
+           src/scene.h
+           src/shape.h
+           src/spectrum.h
+           src/table_dist.h
+           src/texture.h
+           src/transform.h
+           src/vector.h)
+
+set(SRCS_CPP src/parsers/load_serialized.cpp
          src/parsers/parse_obj.cpp
          src/parsers/parse_ply.cpp
          src/parsers/parse_scene.cpp
@@ -102,7 +103,7 @@ set(SRCS src/filters/box.inl
          src/transform.cpp
          src/volume.cpp)
 
-add_library(lajolla_lib STATIC ${SRCS} ${SRCS_3RDPARTY})
+add_library(lajolla_lib STATIC ${SRCS_H} ${SRCS_CPP} ${SRCS_3RDPARTY})
 add_executable(lajolla src/main.cpp)
 target_link_libraries(lajolla lajolla_lib)
 if(MSVC)
@@ -154,3 +155,12 @@ add_executable(test_mipmap src/tests/mipmap.cpp)
 target_link_libraries(test_mipmap lajolla_lib)
 add_test(mipmap test_mipmap)
 set_tests_properties(mipmap PROPERTIES PASS_REGULAR_EXPRESSION "SUCCESS")
+
+source_group("3rd Party" ${CMAKE_CURRENT_SOURCE_DIR}
+    FILES ${SRCS_3RDPARTY})
+source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR}/src
+    PREFIX "Header Files"
+    FILES ${SRCS_H})
+source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR}/src
+    PREFIX "Source Files" 
+    FILES ${SRCS_CPP})
