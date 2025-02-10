@@ -80,15 +80,15 @@ Spectrum vol_path_tracing_2(const Scene &scene,
             Spectrum phase = eval(get_phase_function(medium), -ray.dir, dir_light);
             Spectrum L_e = emission(light, -dir_light, 0, { p_, n_ }, scene);
 
-            Real dwdp_ = 0;
+            Real dw_dp_ = 0;
 
             Real epsilon = get_shadow_epsilon(scene);
             Ray shadow_ray { p, dir_light, epsilon, (1 - epsilon) * length(p - p_) };
             if (!occluded(scene, shadow_ray)) {
-                dwdp_ = abs(dot(dir_light, n_)) / length_squared(p - p_);
+                dw_dp_ = abs(dot(dir_light, n_)) / length_squared(p - p_);
             }
             
-            L_scatter1 = phase * L_e * transmittance_ * dwdp_ / pdf_p_;
+            L_scatter1 = phase * L_e * transmittance_ * dw_dp_ / pdf_p_;
         }
 
         radiance = sigma_s * L_scatter1 * transmittance / pdf_t;
@@ -110,11 +110,94 @@ Spectrum vol_path_tracing_2(const Scene &scene,
 // The third volumetric renderer (not so simple anymore): 
 // multiple monochromatic homogeneous volumes with multiple scattering
 // no need to handle surface lighting, only directly visible light source
-Spectrum vol_path_tracing_3([[maybe_unused]]const Scene &scene,
-                            [[maybe_unused]]int x, [[maybe_unused]]int y, /* pixel coordinates */
-                            [[maybe_unused]]pcg32_state &rng) {
-    // Homework 2: implememt this!
-    return make_zero_spectrum();
+Spectrum vol_path_tracing_3(const Scene &scene,
+                            int x, int y, /* pixel coordinates */
+                            pcg32_state &rng) {
+    constexpr RayDifferential ray_diff { Real(0), Real(0) };
+
+    const int w = scene.camera.width;
+    const int h = scene.camera.height;
+    const Vector2 screen_pos((x + next_pcg32_real<Real>(rng)) / w, (y + next_pcg32_real<Real>(rng)) / h);
+
+    Ray ray = sample_primary(scene.camera, screen_pos);
+    ray.tnear = get_intersection_epsilon(scene);
+    const Medium* medium = scene.camera.medium_id >= 0 ? &scene.media[scene.camera.medium_id] : nullptr;
+
+    Spectrum radiance = make_zero_spectrum();
+    Spectrum throughput = make_const_spectrum(1);
+
+    const int max_depth = scene.options.max_depth;
+    for (int depth = 0; max_depth < 0 || depth < max_depth; depth++) {
+        const std::optional<PathVertex> hit = intersect(scene, ray, ray_diff);
+        const Real t_hit = hit.has_value() ? length(hit->position - ray.org) : infinity<Real>();
+        
+        Real t = t_hit;
+        if (medium != nullptr) {
+            const Real sigma_a = get_sigma_a(*medium, ray.org).x;
+            const Real sigma_s = get_sigma_s(*medium, ray.org).x;
+            const Real sigma_t = sigma_a + sigma_s;
+
+            const Real u = next_pcg32_real<Real>(rng);
+            t = min(t_hit, -log(1 - u) / sigma_t);
+
+            const Real transmittance = exp(-sigma_t * t);
+            if (t >= t_hit) {
+                const Real pr_t = exp(-sigma_t * t);
+                throughput *= transmittance / pr_t;
+            } else {
+                const Real pdf_t = exp(-sigma_t * t) * sigma_t;
+                throughput *= transmittance * sigma_s / pdf_t;
+            }
+        }
+
+        if (t >= t_hit) {
+            if (!hit.has_value()) {
+                break;
+            }
+
+            if (is_light(scene.shapes[hit->shape_id])) {
+                const Spectrum L_e = emission(*hit, -ray.dir, scene);
+                radiance += throughput * L_e;
+                break;
+            }
+
+            const int interior_id = get_interior_medium_id(scene.shapes[hit->shape_id]);
+            const int exterior_id = get_exterior_medium_id(scene.shapes[hit->shape_id]);
+            if (hit->material_id < 0 && interior_id != exterior_id) {
+                const int medium_id = dot(hit->geometric_normal, ray.dir) > 0 ? exterior_id : interior_id;
+                medium = medium >= 0 ? &scene.media[medium_id] : nullptr;
+            }
+
+            ray.org = hit->position;
+        } else {
+            assert(medium != nullptr);
+
+            const Vector3 p = ray.org + t * ray.dir;
+
+            const PhaseFunction phase_function = get_phase_function(*medium);
+            const Vector2 phase_uv { next_pcg32_real<Real>(rng), next_pcg32_real<Real>(rng) };
+            std::optional<Vector3> dir_light = sample_phase_function(phase_function, -ray.dir, phase_uv);
+            if (!dir_light.has_value()) {
+                break;
+            }
+            const Real pdf_w_ = pdf_sample_phase(phase_function, -ray.dir, *dir_light);
+            const Spectrum phase = eval(phase_function, -ray.dir, *dir_light);
+            throughput *= phase / pdf_w_;
+
+            ray.dir = *dir_light;
+            ray.org = p;
+        }
+
+        if (depth >= scene.options.rr_depth) {
+            const Real pr_russian_roulette = min(Real(0.95), max(throughput));
+            if (next_pcg32_real<Real>(rng) > pr_russian_roulette) {
+                break;
+            }
+            throughput /= pr_russian_roulette;
+        }
+    }
+
+    return radiance;
 }
 
 // The fourth volumetric renderer: 
