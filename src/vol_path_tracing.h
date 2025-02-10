@@ -142,6 +142,9 @@ Spectrum vol_path_tracing_3(const Scene &scene,
 
             const Real transmittance = exp(-sigma_t * t);
             if (t >= t_hit) {
+                // Due to truncation (t = min(t_hit, ...)), we use the
+                // probability, instead of the pdf. Truncating results in
+                // pdf(t_hit) = infty (dirac delta measure).
                 const Real pr_t = exp(-sigma_t * t);
                 throughput *= transmittance / pr_t;
             } else {
@@ -165,7 +168,7 @@ Spectrum vol_path_tracing_3(const Scene &scene,
             const int exterior_id = get_exterior_medium_id(scene.shapes[hit->shape_id]);
             if (hit->material_id < 0 && interior_id != exterior_id) {
                 const int medium_id = dot(hit->geometric_normal, ray.dir) > 0 ? exterior_id : interior_id;
-                medium = medium >= 0 ? &scene.media[medium_id] : nullptr;
+                medium = medium_id >= 0 ? &scene.media[medium_id] : nullptr;
             }
 
             ray.org = hit->position;
@@ -204,11 +207,175 @@ Spectrum vol_path_tracing_3(const Scene &scene,
 // multiple monochromatic homogeneous volumes with multiple scattering
 // with MIS between next event estimation and phase function sampling
 // still no surface lighting
-Spectrum vol_path_tracing_4([[maybe_unused]]const Scene &scene,
-                            [[maybe_unused]]int x, [[maybe_unused]]int y, /* pixel coordinates */
-                            [[maybe_unused]]pcg32_state &rng) {
-    // Homework 2: implememt this!
-    return make_zero_spectrum();
+Spectrum vol_path_tracing_4(const Scene &scene,
+                            int x, int y, /* pixel coordinates */
+                            pcg32_state &rng) {
+    constexpr RayDifferential ray_diff { Real(0), Real(0) };
+
+    const int w = scene.camera.width;
+    const int h = scene.camera.height;
+    const Vector2 screen_pos((x + next_pcg32_real<Real>(rng)) / w, (y + next_pcg32_real<Real>(rng)) / h);
+
+    Ray ray = sample_primary(scene.camera, screen_pos);
+    ray.tnear = get_intersection_epsilon(scene);
+    const Medium* medium = scene.camera.medium_id >= 0 ? &scene.media[scene.camera.medium_id] : nullptr;
+
+    Spectrum radiance = make_zero_spectrum();
+    Spectrum throughput = make_const_spectrum(1);
+
+    Real pdf_bsdf_cache = 0;
+    Vector3 p_nee_cache = ray.org;
+    bool has_sampled_nee = false;
+
+    const int max_depth = scene.options.max_depth;
+    for (int depth = 0; max_depth < 0 || depth < max_depth; depth++) {
+        const std::optional<PathVertex> hit = intersect(scene, ray, ray_diff);
+        const Real t_hit = hit.has_value() ? length(hit->position - ray.org) : infinity<Real>();
+
+        Real t = t_hit;
+        if (medium != nullptr) {
+            const Real sigma_a = get_sigma_a(*medium, ray.org).x;
+            const Real sigma_s = get_sigma_s(*medium, ray.org).x;
+            const Real sigma_t = sigma_a + sigma_s;
+
+            const Real u = next_pcg32_real<Real>(rng);
+            t = min(t_hit, -log(1 - u) / sigma_t);
+
+            const Real transmittance = exp(-sigma_t * t);
+            if (t >= t_hit) {
+                // Due to truncation (t = min(t_hit, ...)), we use the
+                // probability, instead of the pdf. Truncating results in
+                // pdf(t_hit) = infty (dirac delta measure).
+                const Real pr_t = exp(-sigma_t * t);
+                throughput *= transmittance / pr_t;
+                pdf_bsdf_cache *= pr_t;
+            } else {
+                const Real pdf_t = exp(-sigma_t * t) * sigma_t;
+                throughput *= transmittance * sigma_s / pdf_t;
+            }
+        }
+
+        if (t >= t_hit) {
+            if (!hit.has_value()) {
+                break;
+            }
+
+            if (is_light(scene.shapes[hit->shape_id])) {
+                const Spectrum L_e = emission(*hit, -ray.dir, scene);
+
+                const int light_id = get_area_light_id(scene.shapes[hit->shape_id]);
+                const Light& light = scene.lights[light_id];
+                
+                const Real dwdp = abs(dot(ray.dir, hit->geometric_normal)) / length_squared(hit->position - p_nee_cache);
+                const Real pdf_nee = light_pmf(scene, light_id) * pdf_point_on_light(light, { hit->position, hit->geometric_normal }, p_nee_cache, scene);
+                const Real pdf_bsdf = pdf_bsdf_cache * dwdp;
+                const Real weight_bsdf = has_sampled_nee ? pdf_bsdf * pdf_bsdf / (pdf_bsdf * pdf_bsdf + pdf_nee * pdf_nee) : 1;
+
+                throughput *= weight_bsdf;
+                radiance += throughput * L_e;
+                break;
+            }
+
+            const int interior_id = get_interior_medium_id(scene.shapes[hit->shape_id]);
+            const int exterior_id = get_exterior_medium_id(scene.shapes[hit->shape_id]);
+            if (hit->material_id < 0 && interior_id != exterior_id) {
+                const int medium_id = dot(hit->geometric_normal, ray.dir) > 0 ? exterior_id : interior_id;
+                medium = medium_id >= 0 ? &scene.media[medium_id] : nullptr;
+            }
+
+            ray.org = hit->position;
+        } else {
+            assert(medium != nullptr);
+
+            const Vector3 p = ray.org + t * ray.dir;
+            const PhaseFunction phase_function = get_phase_function(*medium);
+
+            // NEE
+            {
+                const int light_id_nee = sample_light(scene, next_pcg32_real<Real>(rng));
+                const Light& light_nee = scene.lights[light_id_nee];
+                const Vector2 light_nee_uv { next_pcg32_real<Real>(rng), next_pcg32_real<Real>(rng) };
+                const Real light_nee_w = next_pcg32_real<Real>(rng);
+
+                const auto [p_, n_] = sample_point_on_light(light_nee, p, light_nee_uv, light_nee_w, scene);
+                const Vector3 dir_nee = normalize(p_ - p);
+
+                const Medium* medium_nee = medium;
+                Real transmittance_ = 1;
+                Real pr_transmit = 1;
+
+                const Real epsilon = get_shadow_epsilon(scene);
+                Ray ray_nee { p, dir_nee, epsilon, (1 - epsilon) * length(p_ - p) };
+                for (int nee_depth = 1; max_depth < 0 || depth + nee_depth < max_depth; nee_depth++) {
+                    const std::optional<PathVertex>  hit_nee = intersect(scene, ray_nee, ray_diff);
+                    const Real t_nee = hit_nee.has_value() ? length(hit_nee->position - ray_nee.org) : length(p_ - ray_nee.org);
+
+                    if (medium_nee != nullptr) {
+                        const Real sigma_a = get_sigma_a(*medium_nee, ray_nee.org).x;
+                        const Real sigma_s = get_sigma_s(*medium_nee, ray_nee.org).x;
+                        const Real sigma_t = sigma_a + sigma_s;
+
+                        transmittance_ *= exp(-sigma_t * t_nee);
+
+                        if (hit_nee && hit_nee->material_id < 0) {
+                            pr_transmit *= exp(-sigma_t * length(hit_nee->position - ray_nee.org));
+                        }
+                    }
+
+                    if (!hit_nee) {
+                        const Spectrum phase = eval(phase_function, -ray.dir, dir_nee);
+                        const Spectrum L_e = emission(light_nee, -dir_nee, 0, { p_, n_ }, scene);
+
+                        const Real dw_dp_ = abs(dot(dir_nee, n_)) / length_squared(p_ - p);
+                        const Real pdf_p_ = light_pmf(scene, light_id_nee) * pdf_point_on_light(light_nee, { p_, n_ }, p, scene);
+                        const Real pdf_bsdf_ = pdf_sample_phase(phase_function, -ray.dir, dir_nee) * pr_transmit * dw_dp_;
+                        
+                        const Real weight_nee = pdf_p_ * pdf_p_ / (pdf_bsdf_ * pdf_bsdf_ + pdf_p_ * pdf_p_);
+
+                        radiance += weight_nee * throughput * phase * L_e * transmittance_ * dw_dp_ / pdf_p_;
+                        break;
+                    } else if (hit_nee->material_id >= 0) {
+                        break;
+                    }
+
+                    const int interior_id = get_interior_medium_id(scene.shapes[hit_nee->shape_id]);
+                    const int exterior_id = get_exterior_medium_id(scene.shapes[hit_nee->shape_id]);
+                    if (interior_id != exterior_id) {
+                        const int medium_id = dot(hit_nee->geometric_normal, ray_nee.dir) > 0 ? exterior_id : interior_id;
+                        medium_nee = medium_id >= 0 ? &scene.media[medium_id] : nullptr;
+                    }
+
+                    ray_nee.org = hit_nee->position;
+                    ray_nee.tfar = (1 - epsilon) * length(p_ - hit_nee->position);
+                }
+            }
+            p_nee_cache = p;
+            has_sampled_nee = true;
+
+            const Vector2 phase_uv { next_pcg32_real<Real>(rng), next_pcg32_real<Real>(rng) };
+            std::optional<Vector3> dir_light = sample_phase_function(phase_function, -ray.dir, phase_uv);
+            if (!dir_light.has_value()) {
+                break;
+            }
+            const Real pdf_w_ = pdf_sample_phase(phase_function, -ray.dir, *dir_light);
+            const Spectrum phase = eval(phase_function, -ray.dir, *dir_light);
+            throughput *= phase / pdf_w_;
+            pdf_bsdf_cache = pdf_w_;
+
+            ray.dir = *dir_light;
+            ray.org = p;
+        }
+
+        if (depth >= scene.options.rr_depth) {
+            const Real pr_russian_roulette = min(Real(0.95), max(throughput));
+            if (next_pcg32_real<Real>(rng) > pr_russian_roulette) {
+                break;
+            }
+            throughput /= pr_russian_roulette;
+        }
+    }
+
+    return radiance;
 }
 
 // The fifth volumetric renderer: 
